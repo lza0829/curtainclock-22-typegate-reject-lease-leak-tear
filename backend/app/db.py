@@ -5,11 +5,12 @@ from contextlib import contextmanager
 
 from app.config import DB_PATH
 
-# 架构口径（本仓库全局唯一贯彻）：**开窗写锁内一次扫落** —— 不设预占表。
-# 所有占用类写入都走 transaction() 的 BEGIN IMMEDIATE 写锁；候补扫描、就绪复检、
-# 正式 open 落库三件事发生在同一把写锁、同一个连接、同一个事务内。
-# 因此并发两路同时抢同一候补时，后到者一定能看到先到者已提交的 open 租约，
-# 只能改选下一个候补或失败，不会出现「双候补 open」。
+# 架构口径（本仓库全局唯一贯彻）：**以类型裁决回执为准，开窗写锁内一次裁落**。
+# 所有占用类写入都走 transaction() 的 BEGIN IMMEDIATE 写锁；类型门禁裁决、
+# 候补扫描、就绪复检、正式 open 落库发生在同一把写锁、同一个连接、同一个事务内。
+# 拒绝只落冲突回执、不留占用；成功则租约执行器必落在裁决能力集合内。
+# 因此并发两路同时抢同一候补/同一执行器时，后到者一定能看到先到者已提交的
+# open 租约，只能改选下一个或失败，不会出现「双候补 open」或「一拒一漏」。
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS slots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +48,8 @@ CREATE TABLE IF NOT EXISTS leases (
   slot_code TEXT NOT NULL,
   main_slot_code TEXT,
   executor_code TEXT NOT NULL,
+  designated_executor_code TEXT,
+  exec_substituted INTEGER NOT NULL DEFAULT 0,
   day TEXT NOT NULL,
   start_min INTEGER NOT NULL,
   end_min INTEGER NOT NULL,
@@ -124,6 +127,10 @@ MIGRATIONS = {
     "leases": [
         ("main_slot_code", "TEXT"),
         ("degraded", "INTEGER NOT NULL DEFAULT 0"),
+        # 类型链替身落点：executor_code=实际落点（必在能力集合内），
+        # designated_executor_code=批窗指定执行器，exec_substituted=是否替身。
+        ("designated_executor_code", "TEXT"),
+        ("exec_substituted", "INTEGER NOT NULL DEFAULT 0"),
     ],
 }
 

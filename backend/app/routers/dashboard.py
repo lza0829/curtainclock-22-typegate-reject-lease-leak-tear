@@ -1,9 +1,9 @@
 from __future__ import annotations
-from app.services import type_gate_view
 
 from fastapi import APIRouter
 
 from app.db import connect
+from app.services.reconcile import type_gate_differences
 
 router = APIRouter(tags=["dashboard"])
 
@@ -41,7 +41,13 @@ def dashboard():
         conflict_actual = conn.execute(
             "SELECT COUNT(*) c FROM conflicts"
         ).fetchone()["c"]
-        base = {
+        type_rejections = conn.execute(
+            "SELECT COUNT(*) c FROM conflicts WHERE kind='type'"
+        ).fetchone()["c"]
+        # 类型门禁徽章：以差异桶为准。差异未清前不得显示「通过」——
+        # 徽章、租约落点、水位三者同刷可核对，禁止各说各话。
+        diffs = type_gate_differences(conn)
+        return {
             "fixture_day": day,
             "open_leases": open_wm,
             "conflict_count": conflict_wm,
@@ -54,7 +60,11 @@ def dashboard():
                 open_wm == open_actual == live_n
                 and conflict_wm == conflict_actual
             ),
+            "type_gate": {
+                "status": "passed" if not diffs else "diverged",
+                "differences": len(diffs),
+                "type_rejections": type_rejections,
+            },
         }
-        return type_gate_view.overlay_dashboard(conn, base)
     finally:
         conn.close()

@@ -24,6 +24,9 @@ export const api = {
   windows: () => req("/windows"),
   leases: () => req("/leases"),
   conflicts: () => req("/conflicts"),
+  differences: () => req("/type-gate/differences"),
+  capabilityMatrix: () => req("/capability-matrix"),
+  typeCheck: (code) => req(`/windows/${code}/type-check`),
   openLease: (window_code) =>
     req("/leases/open", { method: "POST", body: JSON.stringify({ window_code }) }),
   closeLease: (lease_no) =>

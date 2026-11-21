@@ -16,6 +16,8 @@ export default function Home() {
   if (!d) return <div className="panel">加载中…</div>;
 
   const ok = d.watermarks_consistent;
+  const tg = d.type_gate || {};
+  const tgPassed = tg.status === "passed";
 
   return (
     <section className="panel">
@@ -41,12 +43,24 @@ export default function Home() {
           降级占用
           <b>{d.degraded_leases}</b>
         </div>
+        <div className="stat">
+          类型门禁拒绝
+          <b>{tg.type_rejections ?? 0}</b>
+        </div>
+      </div>
+      <div className={`msg ${tgPassed ? "" : "err"}`}>
+        类型门禁：
+        {tgPassed
+          ? "通过 · 类型回执与已落库占用一致"
+          : `存在 ${tg.differences} 条差异（见冲突页差异桶），差异未清前不得显示通过`}
       </div>
       <div className={`msg ${ok ? "" : "err"}`}>
         水位互证：
-        {"一致"} · 在途租约水位 {d.open_leases} / 实槽 {d.open_leases_actual}
+        {ok ? "一致" : "不一致"} · 在途租约水位 {d.open_leases} / 实槽{" "}
+        {d.open_leases_actual}
         {" / 占用中批窗 "}
-        {d.live_sessions} · 冲突水位 {d.conflict_count} / 实槽 {d.conflict_count_actual}
+        {d.live_sessions} · 冲突水位 {d.conflict_count} / 实槽{" "}
+        {d.conflict_count_actual}
       </div>
     </section>
   );

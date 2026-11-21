@@ -34,11 +34,23 @@ def list_slots():
 
 @router.get("/executors")
 def list_executors():
+    """执行器占用索引：每个执行器加实时占用（来自 open 租约，与水位同源）。"""
     conn = connect()
     try:
         rows = conn.execute(
             "SELECT code, name, subject, active FROM executors ORDER BY code"
         ).fetchall()
-        return [dict(r) for r in rows]
+        out = []
+        for r in rows:
+            leases = conn.execute(
+                "SELECT lease_no, window_code, day, start_min, end_min "
+                "FROM leases WHERE status='open' AND executor_code=? ORDER BY day, start_min",
+                (r["code"],),
+            ).fetchall()
+            item = dict(r)
+            item["open_leases"] = [dict(x) for x in leases]
+            item["occupied"] = len(leases) > 0
+            out.append(item)
+        return out
     finally:
         conn.close()

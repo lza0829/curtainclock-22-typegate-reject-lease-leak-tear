@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import PROJECT_NAME
-from app.routers import dashboard, leases, resources, windows
+from app.routers import dashboard, leases, resources, typegate, windows
 from app.seed import seed_if_empty
 
 seed_if_empty()
@@ -20,3 +20,4 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(resources.router, prefix="/api")
 app.include_router(windows.router, prefix="/api")
 app.include_router(leases.router, prefix="/api")
+app.include_router(typegate.router, prefix="/api")

@@ -60,7 +60,15 @@ export default function Leases() {
                   <span className="tag standby"> 降级自 {r.main_slot_code}</span>
                 ) : null}
               </td>
-              <td>{r.executor_code}</td>
+              <td>
+                {r.executor_code}
+                {r.exec_substituted ? (
+                  <span className="tag standby">
+                    {" "}
+                    替身自 {r.designated_executor_code}
+                  </span>
+                ) : null}
+              </td>
               <td>
                 {r.day} {fmtMin(r.start_min)}–{fmtMin(r.end_min)}
               </td>

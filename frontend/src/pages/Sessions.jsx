@@ -35,7 +35,10 @@ export default function Sessions() {
       const tail = r.degraded
         ? `（主槽冲突，已降级到候补槽 ${r.slot_code}）`
         : `（主槽 ${r.slot_code}）`;
-      setMsg(`已开窗，租约 ${r.lease_no}${tail}；在途租约 ${r.open_leases}`);
+      const execTail = r.exec_substituted
+        ? `；执行器走类型链替身，落 ${r.executor_code}（指定 ${r.designated_executor_code}）`
+        : `；执行器 ${r.executor_code}`;
+      setMsg(`已开窗，租约 ${r.lease_no}${tail}${execTail}；在途租约 ${r.open_leases}`);
       await load();
     } catch (e) {
       setErr(e.message);
@@ -62,6 +65,7 @@ export default function Sessions() {
         <tbody>
           {rows.map((r) => {
             const rd = r.readiness || {};
+            const tg = rd.type_gate || {};
             return (
               <tr key={r.code}>
                 <td>
@@ -79,16 +83,28 @@ export default function Sessions() {
                   {r.executor_code}
                 </td>
                 <td>
-                  {rd.ready ? (
+                  {tg.verdict === "reject_type" ? (
+                    <span className="tag bad">{tg.reject_reason}</span>
+                  ) : rd.ready ? (
                     <span className="tag live">就绪</span>
+                  ) : tg.verdict === "no_capable_free" ? (
+                    <span className="tag bad">
+                      执行器全忙，能力集合内无同类型空闲替身
+                    </span>
+                  ) : (rd.reasons || []).length > 0 ? (
+                    <span className="tag bad">{rd.reasons.join("；")}</span>
                   ) : rd.degradable ? (
                     <span className="tag standby">
                       可降级 · 候补 {rd.standby_free?.join("、")}
+                      {tg.substituted ? `；替身落 ${tg.landing_executor}` : ""}
+                    </span>
+                  ) : tg.substituted ? (
+                    <span className="tag standby">
+                      可替身 · 落 {tg.landing_executor}（指定{" "}
+                      {tg.designated_executor} 被占）
                     </span>
                   ) : (
-                    <span className="tag bad">
-                      {(rd.reasons || []).join("；") || "未就绪"}
-                    </span>
+                    <span className="tag bad">未就绪</span>
                   )}
                 </td>
                 <td>

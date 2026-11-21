@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.db import connect, transaction
-from app.services.ready import readiness
+from app.services.ready import readiness, type_adjudication
 
 router = APIRouter(tags=["windows"])
 
@@ -75,5 +75,24 @@ def session_ready(code: str):
         if row is None:
             raise HTTPException(404, "批窗不存在")
         return readiness(conn, row)
+    finally:
+        conn.close()
+
+
+@router.get("/windows/{code}/type-check")
+def type_check(code: str):
+    """类型预检（纯读，不落库）：与开窗写锁事务共用同一份类型裁决口径。
+
+    返回能力集合、指定执行器是否在集合内、替身落点预判；开窗事务实际
+    落库前会在写锁内用同一函数复裁，两处永不各说各话。
+    """
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM windows WHERE code=?", (code,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "批窗不存在")
+        return type_adjudication(conn, row)
     finally:
         conn.close()
